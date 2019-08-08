@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<meta charset="utf-8">
+	<title>UXFDReverb</title>
+	<style type="text/css">
+		* {	font-family: sans-serif; }
+		label, input+span { font-family: monospace; font-size: 2ex; line-height: 2.2ex;}
+		input { height: 2.2ex; width: 34%;}
+		body {
+			margin: 20px auto;
+			max-width: 880px;
+			padding: 5px;
+		}
+		div>label {
+			width: 34%;
+			display: inline-block;
+		}
+		#controls>div {
+			display: flex;
+			align-items:center;
+		}
+		#clips { display: inline-block; }
+	</style>
+</head>
+<body>
+<div id="clips"></div><button id="mic">Toggle Mic</button>
+<br><br>
+<div id="controls">
+	<div>
+		<label>PreDelay _____(🔻 0 ⬅ &nbsp;➡sr/4🔺): </label> 
+		<input type="range" id="pd" name="preDelay" max="11999" step="1">
+		<span></span>
+	</div>
+	<div>
+		<label>PreLPF _______(🔻 0 ⬅&nbsp;&nbsp;➡ 1 🔺): </label> 
+		<input type="range" id="bw" name="bandwidth" max="1" step="0.000001">
+		<span></span>
+	</div>
+	<div>
+		<label>Diffuse ______(🔻 0 ⬅&nbsp;&nbsp;➡ 1 🔺): </label> 
+		<input type="range" id="df" name="diffuse" max="1" step="0.000001">
+		<span></span>
+	</div>
+	<div>
+		<label>DecayRate ____(📉 0 ⬅&nbsp;&nbsp;➡ 1 🍨): </label> 
+		<input type="range" id="dc" name="decay" min="0" max="1" step="0.000001"> 
+		<span></span>
+	</div>
+	<div>
+		<label>Damping ______(👻 0 ⬅&nbsp;&nbsp;➡ 1 📉): </label> 
+		<input type="range" id="dp" name="damping" max="1" step="0.000001">
+		<span></span>
+	</div>
+	<div>
+		<label>Excursion ____(💤 0 ⬅&nbsp;&nbsp;➡ 32🔆): </label> 
+		<input type="range" id="ex" name="excursion" max="32" step="0.1">
+		<span></span>
+	</div>
+	<div>
+		<label>Dry __________(🔻 0 ⬅&nbsp;&nbsp;➡ 1 🔺): </label> 
+		<input type="range" id="dr" name="dry" max="1" step="0.000001">
+		<span></span>
+	</div>
+	<div>
+		<label>Wet __________(🔻 0 ⬅&nbsp;&nbsp;➡ 1 🔺): </label> 
+		<input type="range" id="we" name="wet" max="1" step="0.000001" >
+		<span></span> 
+	</div>
+	<br>
+	<div>
+		<label>😷 Presets</label>
+		<button id="smol">Room</button> 
+		<button id="bige">Church</button>
+		<button id="frez">Frozen</button>
+		<button id="ether">Ethereal</button>
+		<button id="sprnk">Sprinkle</button>
+	</div>
+</div>
+<div>
+	<h2>
+		UXFDReverb (User-eXperienced-Focused Dattorro Reverb)
+	</h2>
+	<h4>
+		Re-parameterized Dattorro-Griesinger Reverb for Musical Use-case. 
+	</h4>
+	<h3>📃 Primary Source</h3>
+	<ul>
+		<li>Jon Dattorro's paper [<a href="https://ccrma.stanford.edu/~dattorro/EffectDesignPart1.pdf">CCRMA PDF</a>]</li>
+	</ul>
+	<h3>🎼 Music Credits</h3>
+	<p>From Placeboing on Freesound under CC 0 and From Kikuo's Mikukikuo5 under CC BY-NC-SA.</p>
+	<ul>
+		<li>Placeboing [<a href="https://freesound.org/people/placeboing/sounds/338387/">Freesound</a>]</li>
+		<li>MAWARU [<a href="https://kikuo.bandcamp.com/track/mawaru">Bandcamp</a>]</li>
+		<li>Sea is [<a href="https://kikuo.bandcamp.com/track/sea-is">Bandcamp</a>]</li>
+	</ul>
+
+	<h3>⚖ License &amp; 💾 Source</h3>
+	<p> Public Domain // [<a href="https://github.com/khoin/UXFDReverb">Repository</a>]</p>
+</div>
+</body>
+<script type="module">
+const 	aC  = new AudioContext();
+
+const 	presets = [
+	[ 1525  , 0.5683, 0.5  , 0.3226, 0.6446, 0  , 0.2921, 0.4361 ],
+	[ 596   , 0.983 , 0.9  , 0.8271, 0.2975, 0.8, 0.1402, 0.9000 ],
+	[ 0     , 0.999 , 1    , 1     , 0.195 , 12 , 0.915 , 0.194  ],
+	[ 11000 , 0.999 , 0.8  , 0.86  , 0.3   , 30 , 0.71  , 0.30   ],
+	[ 3800  , 1     , 0    , 0.43  , 0.09  , 0  , 0.70  , 0.45   ]
+];
+
+let audios   = ['placeboing', 'kikuo', 'kikuo2', 'sine'].map(a => new Audio(`./${a}.wav`));
+
+let micState = false;
+
+Promise.all([
+	aC.audioWorklet.addModule('UXFDReverb.js')
+]).then(_ => {
+	let esrc = audios.map(a => aC.createMediaElementSource(a));
+	let m  = undefined;
+	let mg = aC.createGain();
+	let mx = aC.createGain();
+
+	let reverb = new AudioWorkletNode(aC, 'UXFDReverb');
+	
+	esrc.forEach(src => src.connect(mx));
+	mg.connect(reverb);
+	mx.connect(reverb);
+	reverb.connect(aC.destination);
+
+	audios.forEach((aud, i) => {
+		let btn = document.createElement("button");
+		btn.innerText = `Play ${aud.src.split("/").pop()}`;
+		btn.onclick = _ => aC.resume() & audios[i].play();
+		clips.appendChild(btn);
+	})
+
+	mic.onclick = _ => {
+		if (micState) {
+			mg.gain.linearRampToValueAtTime(0, aC.currentTime + 0.1);
+			mic.style.background = '';
+			micState = false;
+		} else {
+			if(m == undefined)
+				navigator.getUserMedia({ audio: true }, stream => {
+					m = aC.createMediaStreamSource(stream);
+					m.connect(mg);
+				}, () => {
+					mic.style.background = '';
+					alert("Failed getting microphone.");
+					micState = false;
+				});
+			mg.gain.linearRampToValueAtTime(1, aC.currentTime + 0.1);
+			mic.style.background = 'darksalmon';
+			micState = true;
+		}
+	}
+
+	const pull = _ => 
+		[...document.querySelectorAll("input")]
+			.forEach(r => (r.value = reverb.parameters.get(r.name).value) & (r.nextElementSibling.innerText = r.value));
+
+	const push = _ =>
+		[...document.querySelectorAll("input")]
+			.forEach(r => reverb.parameters.get(r.name).linearRampToValueAtTime(r.value, aC.currentTime+0.195));
+
+	[...document.querySelectorAll("input")]
+		.forEach(r => r.onmousemove = e => push() & (r.nextElementSibling.innerText = r.value));
+
+	[smol, bige, frez, ether, sprnk]
+		.forEach((b, i) => 
+			b.onclick = e => {
+				[pd, bw, df, dc, dp, ex, dr, we].forEach((p, j) => p.value = presets[i][j]);
+				push();
+				setTimeout(pull, 200);
+			});
+
+	pull();
+
+}, e => {
+	console.error(e);
+});
+</script>
+</html>
