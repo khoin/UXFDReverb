@@ -1,3 +1,12 @@
+/*
+In jurisdictions that recognize copyright laws, this software is to
+be released into the public domain.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND.
+THE AUTHOR(S) SHALL NOT BE LIABLE FOR ANYTHING, ARISING FROM, OR IN
+CONNECTION WITH THE SOFTWARE OR THE DISTRIBUTION OF THE SOFTWARE.
+*/
+
 class UXFDReverb extends AudioWorkletProcessor {
 	
 	static get parameterDescriptors() {
